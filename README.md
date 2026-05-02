@@ -31,6 +31,7 @@ tests/
   data/mock_posts.csv
 scripts/
   load_csv.py    # Manual CSV -> DB loader (used for the manual smoke run)
+Makefile         # `make test`, `make run`, `make db-up`, etc.
 docker-compose.yml
 pyproject.toml
 ```
@@ -44,7 +45,7 @@ docker-compose file is only needed if you want to run the API yourself.
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
+make install              # equivalent to: pip install -e ".[dev]"
 ```
 
 ## Running the tests
@@ -52,85 +53,67 @@ pip install -e ".[dev]"
 A single command:
 
 ```bash
+make test
+```
+
+That's it. The Makefile transparently handles the small differences between
+Docker setups (Docker Desktop, OrbStack, Colima, Linux Docker) so `make test`
+works on all of them with no shell setup.
+
+If you prefer running pytest directly, that also works on Docker Desktop /
+OrbStack / Linux Docker:
+
+```bash
 pytest
 ```
 
-This will:
-
-1. Pull `postgres:16-alpine` (first run only) and start it in a container.
-2. Create the schema.
-3. Load `tests/data/mock_posts.csv` through the same loader the app uses.
-4. Hit `GET /stats` via FastAPI's `TestClient` and assert the response, both
-   against hardcoded expected aggregates and against several focused
-   correctness invariants (latest-version-wins, `-1` handling, same `post_id`
-   reused across topics, empty DB).
-
-No mocks of the database are used.
-
-### Notes for non-default Docker setups
-
-On **Docker Desktop**, **OrbStack**, or stock Linux Docker, `pytest` works
-with no extra setup.
-
-On **Colima** (or any setup where the daemon isn't at `/var/run/docker.sock`),
-export these once per shell — or add them to `~/.zshrc`:
+On **Colima** specifically (a common macOS alternative to Docker Desktop), if
+you skip the Makefile and want to call `pytest` directly, set these once —
+ideally in your `~/.zshrc`:
 
 ```bash
 export DOCKER_HOST="unix://$HOME/.colima/default/docker.sock"
-export TESTCONTAINERS_RYUK_DISABLED=true
+export TESTCONTAINERS_RYUK_DISABLED=true   # ryuk can't mount the Colima socket
 ```
-
-The second one disables the testcontainers reaper sidecar; it can't mount the
-Colima socket into another container, but it's only used for cleanup if pytest
-itself crashes — not normally needed.
 
 If you also previously had Docker Desktop installed and now see
 `docker-credential-desktop not installed`, your `~/.docker/config.json` still
-references a credential helper that's no longer on `PATH`. Quick fix:
+references a credential helper that's no longer on `PATH`:
 
 ```bash
 mkdir -p /tmp/docker-empty && echo '{}' > /tmp/docker-empty/config.json
 export DOCKER_CONFIG=/tmp/docker-empty
 ```
 
+### What the test suite does
+
+1. Pulls `postgres:16-alpine` (first run only) and starts it in a container.
+2. Creates the schema.
+3. Loads `tests/data/mock_posts.csv` through the same loader the app uses.
+4. Hits `GET /stats` via FastAPI's `TestClient` and asserts the response, both
+   against hardcoded expected aggregates and against several focused
+   correctness invariants (latest-version-wins, `-1` handling, same `post_id`
+   reused across topics, empty DB).
+
+No mocks of the database are used.
+
 ## Running the API manually (end-to-end smoke)
 
-1. Start Postgres:
+```bash
+make db-up      # starts Postgres in a container
+make load       # loads tests/data/mock_posts.csv
+make run        # starts uvicorn on http://localhost:8000
 
-   ```bash
-   docker compose up -d        # or: docker-compose up -d  (legacy plugin)
-   ```
+# In another shell:
+curl -s localhost:8000/health
+curl -s localhost:8000/stats | python -m json.tool
 
-2. Point the app at it and load the sample CSV:
+make db-down    # tears down when you're done
+```
 
-   ```bash
-   source .venv/bin/activate
-   export DATABASE_URL="postgresql+psycopg://postgres:postgres@localhost:5432/posts"
-   python scripts/load_csv.py
-   ```
-
-   The script creates the schema (idempotent) and inserts the 50 rows from
-   `tests/data/mock_posts.csv`. Pass a different path as an argument to load
-   another file.
-
-3. Start the server:
-
-   ```bash
-   uvicorn app.main:app --reload
-   ```
-
-4. Hit it:
-
-   ```bash
-   curl -s localhost:8000/health
-   curl -s localhost:8000/stats | python -m json.tool
-   ```
-
-5. Tear down when done:
-
-   ```bash
-   docker compose down -v       # or: docker-compose down -v
-   ```
+Each Make target is a thin wrapper; the underlying commands are
+`docker-compose up -d`, `python scripts/load_csv.py`, and
+`uvicorn app.main:app --reload`. Run `cat Makefile` to see them all.
 
 Example response:
 
