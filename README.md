@@ -1,5 +1,7 @@
 # Posts Analytics
 
+[![tests](https://github.com/galsnir/posts-analytics/actions/workflows/test.yml/badge.svg)](https://github.com/galsnir/posts-analytics/actions/workflows/test.yml)
+
 A small FastAPI service that exposes a single endpoint, `GET /stats`, returning
 per-topic aggregates over a `posts` table. The data is versioned: a "post" is
 identified by `(post_id, topic)` and may exist with multiple `version` rows;
