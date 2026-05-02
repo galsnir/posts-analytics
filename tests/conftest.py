@@ -7,67 +7,22 @@ independent without paying the cost of restarting the container.
 """
 from __future__ import annotations
 
-import json
 import os
-import shutil
-import tempfile
 import time
 from collections.abc import Iterator
 from pathlib import Path
 
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import text
+from sqlalchemy.engine import Engine
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session
+from testcontainers.postgres import PostgresContainer
 
-def _bootstrap_docker_env() -> None:
-    """Make ``pytest`` work as a single command across common Docker setups.
-
-    Runs before any ``docker``/``testcontainers`` import so the side effects
-    are visible to those libraries.
-
-    Handles three real-world quirks without overriding anything the user
-    already configured:
-
-    * Auto-detects a Colima socket at ``~/.colima/default/docker.sock`` if
-      ``DOCKER_HOST`` is not set (transparent for Docker Desktop users).
-    * Sidesteps a stale ``docker-credential-desktop`` reference in
-      ``~/.docker/config.json`` by pointing ``DOCKER_CONFIG`` at an empty
-      config when the credential helper binary is missing.
-    * Disables the testcontainers "ryuk" reaper, which wants to pull an
-      extra image and isn't strictly necessary for a short test run.
-    """
-    os.environ.setdefault("TESTCONTAINERS_RYUK_DISABLED", "true")
-
-    if "DOCKER_HOST" not in os.environ:
-        colima_sock = Path.home() / ".colima" / "default" / "docker.sock"
-        if colima_sock.exists():
-            os.environ["DOCKER_HOST"] = f"unix://{colima_sock}"
-
-    if "DOCKER_CONFIG" not in os.environ:
-        cfg_path = Path.home() / ".docker" / "config.json"
-        try:
-            cfg = json.loads(cfg_path.read_text()) if cfg_path.exists() else {}
-        except (OSError, json.JSONDecodeError):
-            cfg = {}
-        creds_store = cfg.get("credsStore")
-        if creds_store and shutil.which(f"docker-credential-{creds_store}") is None:
-            empty = Path(tempfile.gettempdir()) / "posts-analytics-docker-config"
-            empty.mkdir(exist_ok=True)
-            (empty / "config.json").write_text("{}")
-            os.environ["DOCKER_CONFIG"] = str(empty)
-
-
-_bootstrap_docker_env()
-
-
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy import text  # noqa: E402
-from sqlalchemy.engine import Engine  # noqa: E402
-from sqlalchemy.exc import OperationalError  # noqa: E402
-from sqlalchemy.orm import Session  # noqa: E402
-from testcontainers.postgres import PostgresContainer  # noqa: E402
-
-from app import database  # noqa: E402
-from app.database import Base, get_session, reset_engine  # noqa: E402
-from app.main import create_app  # noqa: E402
+from app import database
+from app.database import Base, get_session, reset_engine
+from app.main import create_app
 
 
 CSV_PATH = Path(__file__).parent / "data" / "mock_posts.csv"

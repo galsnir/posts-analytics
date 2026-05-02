@@ -67,10 +67,31 @@ This will:
 
 No mocks of the database are used.
 
-`tests/conftest.py` auto-detects a Colima socket at
-`~/.colima/default/docker.sock` and works around a stale
-`docker-credential-desktop` entry in `~/.docker/config.json` if present, so
-`pytest` works on Docker Desktop, OrbStack, and Colima with no extra setup.
+### Notes for non-default Docker setups
+
+On **Docker Desktop**, **OrbStack**, or stock Linux Docker, `pytest` works
+with no extra setup.
+
+On **Colima** (or any setup where the daemon isn't at `/var/run/docker.sock`),
+export these once per shell — or add them to `~/.zshrc`:
+
+```bash
+export DOCKER_HOST="unix://$HOME/.colima/default/docker.sock"
+export TESTCONTAINERS_RYUK_DISABLED=true
+```
+
+The second one disables the testcontainers reaper sidecar; it can't mount the
+Colima socket into another container, but it's only used for cleanup if pytest
+itself crashes — not normally needed.
+
+If you also previously had Docker Desktop installed and now see
+`docker-credential-desktop not installed`, your `~/.docker/config.json` still
+references a credential helper that's no longer on `PATH`. Quick fix:
+
+```bash
+mkdir -p /tmp/docker-empty && echo '{}' > /tmp/docker-empty/config.json
+export DOCKER_CONFIG=/tmp/docker-empty
+```
 
 ## Running the API manually (end-to-end smoke)
 
