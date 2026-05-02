@@ -9,6 +9,21 @@ only the latest version (highest `version`, ties broken by `timestamp`) is
 counted. The sentinel value `-1` in `likes` / `shares` / `comments` is treated
 as a missing value and contributes `0` to the sums.
 
+## Quick start
+
+Requires Python 3.11+ and a running Docker daemon (Docker Desktop, OrbStack,
+Colima, or Linux Docker — all work out of the box).
+
+```bash
+git clone https://github.com/galsnir/posts-analytics
+cd posts-analytics
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+pytest
+```
+
+Expected: `5 passed in ~2s`.
+
 ## Stack
 
 - Python 3.11+
