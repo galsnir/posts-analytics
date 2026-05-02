@@ -25,10 +25,6 @@ def create_app() -> FastAPI:
     def get_stats(session: Session = Depends(get_session)) -> StatsResponse:
         return StatsResponse(topics=compute_topic_stats(session))
 
-    @app.get("/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok"}
-
     return app
 
 

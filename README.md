@@ -121,7 +121,6 @@ No mocks of the database are used.
 4. Hit it (from another shell):
 
    ```bash
-   curl -s localhost:8000/health
    curl -s localhost:8000/stats | python -m json.tool
    ```
 
