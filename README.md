@@ -31,7 +31,6 @@ tests/
   data/mock_posts.csv
 scripts/
   load_csv.py    # Manual CSV -> DB loader (used for the manual smoke run)
-Makefile         # `make test`, `make run`, `make db-up`, etc.
 docker-compose.yml
 pyproject.toml
 ```
@@ -45,7 +44,7 @@ docker-compose file is only needed if you want to run the API yourself.
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-make install              # equivalent to: pip install -e ".[dev]"
+pip install -e ".[dev]"
 ```
 
 ## Running the tests
@@ -53,32 +52,16 @@ make install              # equivalent to: pip install -e ".[dev]"
 A single command:
 
 ```bash
-make test
-```
-
-That's it. The Makefile transparently handles the small differences between
-Docker setups (Docker Desktop, OrbStack, Colima, Linux Docker) so `make test`
-works on all of them with no shell setup.
-
-If you prefer running pytest directly, that also works on Docker Desktop /
-OrbStack / Linux Docker:
-
-```bash
 pytest
 ```
 
-On **Colima** specifically (a common macOS alternative to Docker Desktop), if
-you skip the Makefile and want to call `pytest` directly, set these once —
-ideally in your `~/.zshrc`:
+This works on Docker Desktop, OrbStack, Colima, and stock Linux Docker.
+`tests/conftest.py` contains five lines that auto-detect Colima's socket if
+present; on every other setup that block is a no-op.
 
-```bash
-export DOCKER_HOST="unix://$HOME/.colima/default/docker.sock"
-export TESTCONTAINERS_RYUK_DISABLED=true   # ryuk can't mount the Colima socket
-```
-
-If you also previously had Docker Desktop installed and now see
+If you previously had Docker Desktop installed and now see
 `docker-credential-desktop not installed`, your `~/.docker/config.json` still
-references a credential helper that's no longer on `PATH`:
+references a credential helper that's no longer on `PATH`. Quick fix:
 
 ```bash
 mkdir -p /tmp/docker-empty && echo '{}' > /tmp/docker-empty/config.json
@@ -99,21 +82,37 @@ No mocks of the database are used.
 
 ## Running the API manually (end-to-end smoke)
 
-```bash
-make db-up      # starts Postgres in a container
-make load       # loads tests/data/mock_posts.csv
-make run        # starts uvicorn on http://localhost:8000
+1. Start Postgres:
 
-# In another shell:
-curl -s localhost:8000/health
-curl -s localhost:8000/stats | python -m json.tool
+   ```bash
+   docker-compose up -d
+   ```
 
-make db-down    # tears down when you're done
-```
+2. Load the sample CSV:
 
-Each Make target is a thin wrapper; the underlying commands are
-`docker-compose up -d`, `python scripts/load_csv.py`, and
-`uvicorn app.main:app --reload`. Run `cat Makefile` to see them all.
+   ```bash
+   export DATABASE_URL="postgresql+psycopg://postgres:postgres@localhost:5432/posts"
+   python scripts/load_csv.py
+   ```
+
+3. Start the server:
+
+   ```bash
+   uvicorn app.main:app --reload
+   ```
+
+4. Hit it (from another shell):
+
+   ```bash
+   curl -s localhost:8000/health
+   curl -s localhost:8000/stats | python -m json.tool
+   ```
+
+5. Tear down when done:
+
+   ```bash
+   docker-compose down -v
+   ```
 
 Example response:
 

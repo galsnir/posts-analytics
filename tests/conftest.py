@@ -12,17 +12,27 @@ import time
 from collections.abc import Iterator
 from pathlib import Path
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import text
-from sqlalchemy.engine import Engine
-from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Session
-from testcontainers.postgres import PostgresContainer
+# Auto-detect Colima's docker socket so `pytest` works as a single command on
+# macOS setups where Docker Desktop isn't installed. No-op on Docker Desktop,
+# OrbStack, or Linux Docker (where DOCKER_HOST is either unset and the daemon
+# is at the default socket, or already set by the user).
+if "DOCKER_HOST" not in os.environ:
+    _colima_sock = Path.home() / ".colima" / "default" / "docker.sock"
+    if _colima_sock.exists():
+        os.environ["DOCKER_HOST"] = f"unix://{_colima_sock}"
+        os.environ.setdefault("TESTCONTAINERS_RYUK_DISABLED", "true")
 
-from app import database
-from app.database import Base, get_session, reset_engine
-from app.main import create_app
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import text  # noqa: E402
+from sqlalchemy.engine import Engine  # noqa: E402
+from sqlalchemy.exc import OperationalError  # noqa: E402
+from sqlalchemy.orm import Session  # noqa: E402
+from testcontainers.postgres import PostgresContainer  # noqa: E402
+
+from app import database  # noqa: E402
+from app.database import Base, get_session, reset_engine  # noqa: E402
+from app.main import create_app  # noqa: E402
 
 
 CSV_PATH = Path(__file__).parent / "data" / "mock_posts.csv"
